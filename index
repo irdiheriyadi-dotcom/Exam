@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoalPintar AI - Debug Mode</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 p-6">
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8 text-center">SoalPintar AI - Debug</h1>
+
+    <div class="bg-gray-900 rounded-3xl p-8">
+      <div class="space-y-6">
+        <div>
+          <label class="block mb-2">Pilih AI</label>
+          <select id="aiModel" class="w-full p-4 bg-gray-800 rounded-2xl">
+            <option value="gemini">Gemini (Lebih Stabil)</option>
+            <option value="grok">Grok</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block mb-2">API Key</label>
+          <input type="password" id="apiKey" class="w-full p-4 bg-gray-800 rounded-2xl" placeholder="Masukkan API Key">
+        </div>
+
+        <button onclick="testGenerate()" 
+          class="w-full py-5 bg-indigo-600 hover:bg-indigo-700 rounded-3xl text-xl font-bold">
+          🚀 Test Generate Sekarang
+        </button>
+      </div>
+    </div>
+
+    <div id="hasil" class="hidden mt-8 bg-gray-900 rounded-3xl p-8">
+      <h3 class="font-bold mb-4">Hasil / Error Log:</h3>
+      <pre id="log" class="bg-black p-6 rounded-2xl text-sm text-red-400 whitespace-pre-wrap overflow-auto max-h-96"></pre>
+    </div>
+  </div>
+
+  <script>
+    async function testGenerate() {
+      const log = document.getElementById('log');
+      const hasilDiv = document.getElementById('hasil');
+      hasilDiv.classList.remove('hidden');
+      
+      const model = document.getElementById('aiModel').value;
+      const apiKey = document.getElementById('apiKey').value.trim();
+
+      log.textContent = "Memulai proses...\n";
+
+      if (!apiKey) {
+        log.textContent += "❌ ERROR: API Key belum diisi!\n";
+        return;
+      }
+
+      try {
+        log.textContent += `Menggunakan ${model.toUpperCase()}...\n`;
+
+        let responseText = "";
+
+        if (model === "gemini") {
+          log.textContent += "Mengirim request ke Gemini...\n";
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ 
+                parts: [{ 
+                  text: "Buatlah 3 soal pilihan ganda Matematika kelas 3 SD tentang penjumlahan. Output hanya JSON sederhana." 
+                }] 
+              }]
+            })
+          });
+
+          if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+          const data = await res.json();
+          responseText = data.candidates[0].content.parts[0].text;
+        } 
+        else {
+          log.textContent += "Mengirim request ke Grok...\n";
+          const res = await fetch("https://api.x.ai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+              model: "grok-3",
+              messages: [{ role: "user", content: "Buatlah 3 soal pilihan ganda sederhana." }]
+            })
+          });
+
+          if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+          const data = await res.json();
+          responseText = data.choices[0].message.content;
+        }
+
+        log.textContent += "\n✅ Berhasil terhubung!\n\nHasil AI:\n" + responseText.substring(0, 800) + "...";
+
+      } catch (err) {
+        log.textContent += `\n❌ ERROR: ${err.message}\n\n`;
+        if (err.message.includes("Failed to fetch")) {
+          log.textContent += "Kemungkinan penyebab:\n1. CORS blocking (jalankan di server lokal)\n2. API Key salah\n3. Internet bermasalah";
+        }
+      }
+    }
+  </script>
+</body>
+</html>
